@@ -1,7 +1,7 @@
-#[derive(Debug, PartialEq, Clone)]
-pub enum RunState {
-    Stable,
-    TimeoutError,
-    RetryError,
+
+#[derive(Debug, Clone)]
+pub enum PolicyActionState {
+    Success,
+    Retry,
     UsingFallback,
 }

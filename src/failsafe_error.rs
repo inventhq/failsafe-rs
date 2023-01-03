@@ -1,7 +1,5 @@
 use std::error::Error;
 use thiserror::Error;
-use crate::policies::retry::RetryPolicy;
-use crate::policies::timeout::TimeoutPolicy;
 
 #[derive(Error, Debug)]
 pub enum FailsafeError {
@@ -13,5 +11,8 @@ pub enum FailsafeError {
     RetryError,
     #[error("Runnable Error")]
     RunnableError(Box<dyn Error>),
-
+    #[error("Used Fallback")]
+    UsedFallback,
+    #[error("Unknown Error")]
+    UnknownError,
 }
