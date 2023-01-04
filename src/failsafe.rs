@@ -1,10 +1,29 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::error::Error;
 use crate::failsafe_error::FailsafeError;
 use crate::policies::Policy;
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
+use std::borrow::{Borrow, BorrowMut};
+use std::error::Error;
 
+#[macro_export]
+macro_rules! failsafe {
+    (
+        $x:tt;
+        $( [ $( $y:expr ),* ]);*
+    ) => {
+        $x::new($($( $y ),*),*)
+    };
+
+    ([
+        $(
+            $x:tt; $( [ $( $y:expr ),* ])*
+         ),*
+     ]) => {
+        Failsafe::builder()
+        $(.push(failsafe!($x; [$($( $y ),*),*])))*
+        .build()
+    }
+}
 
 pub struct Failsafe {
     policy: Box<dyn Policy>,
@@ -33,7 +52,6 @@ pub struct FailsafeBuilder {
     policies: Vec<Box<dyn Policy>>,
 }
 
-
 impl FailsafeBuilder {
     fn new() -> FailsafeBuilder {
         FailsafeBuilder { policies: vec![] }
@@ -61,4 +79,9 @@ impl FailsafeBuilder {
             state: PolicyActionState::Success,
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

@@ -1,11 +1,17 @@
-use std::any::Any;
-use std::borrow::BorrowMut;
-use std::fmt::{Display};
 use crate::failsafe_error::FailsafeError;
 use crate::policies::Policy;
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
+use std::any::Any;
+use std::borrow::BorrowMut;
+use std::fmt::Display;
 
+#[macro_export]
+macro_rules! on_fallback {
+    ($f: expr) => {
+        Box::new(move || -> Box<dyn FallbackAble> { Box::new($f) })
+    };
+}
 
 pub struct FallbackPolicy {
     fallback: Box<dyn FnMut() -> Box<dyn FallbackAble>>,
@@ -17,12 +23,17 @@ pub struct FallbackPolicy {
 
 impl FallbackPolicy {
     pub(crate) fn new(fallback: Box<dyn FnMut() -> Box<dyn FallbackAble>>) -> Self {
-        FallbackPolicy { fallback, inner: None, state: PolicyActionState::Success, runnable: None, runnable_error: Box::new(()) }
+        FallbackPolicy {
+            fallback,
+            inner: None,
+            state: PolicyActionState::Success,
+            runnable: None,
+            runnable_error: Box::new(()),
+        }
     }
 }
 
 impl Policy for FallbackPolicy {
-
     fn inner(&self) -> &Option<Box<dyn Policy>> {
         &self.inner
     }
@@ -39,11 +50,13 @@ impl Policy for FallbackPolicy {
         "FallbackPolicy".to_string()
     }
 
-    fn policy_action(&mut self, runnable: &mut Box<&mut dyn Runnable>) -> Result<PolicyActionState, FailsafeError> {
+    fn policy_action(
+        &mut self,
+        runnable: &mut Box<&mut dyn Runnable>,
+    ) -> Result<PolicyActionState, FailsafeError> {
         runnable.update(&(self.fallback)());
         Ok(PolicyActionState::UsingFallback)
     }
-
 
     fn state(&self) -> PolicyActionState {
         self.state.clone()

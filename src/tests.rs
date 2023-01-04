@@ -1,26 +1,17 @@
-use std::thread::sleep;
-use std::time::Duration;
-use rand::distributions::{Alphanumeric, DistString};
-use rand::{random, thread_rng};
-use crate::{
-    failsafe_error::FailsafeError,
-    failsafe::Failsafe,
-    policies::{
-        fallback::FallbackPolicy,
-        retry::RetryPolicy,
-        timeout::TimeoutPolicy,
-    },
-    run_state::PolicyActionState,
-    policies::Policy,
-};
-use crate::person::{Person, PersonError};
 use super::*;
+use crate::person::{Person, PersonError};
+use crate::{
+    failsafe::Failsafe,
+    failsafe_error::FailsafeError,
+    policies::Policy,
+    policies::{fallback::FallbackPolicy, retry::RetryPolicy, timeout::TimeoutPolicy},
+    run_state::PolicyActionState,
+};
+use std::time::Duration;
 
 fn check_expected_error(r: Result<(), FailsafeError>, expected: &str) -> bool {
     match r {
-        Ok(_) => {
-            false
-        }
+        Ok(_) => false,
         Err(e) => {
             let s = format!("{:?}", e);
             println!("[{}]", s);
@@ -30,25 +21,31 @@ fn check_expected_error(r: Result<(), FailsafeError>, expected: &str) -> bool {
 }
 
 #[test]
-fn test_policy_flow() {
-    let safe: Failsafe = Failsafe::builder()
-        .push(FallbackPolicy::new(Box::new(|| Box::new(Person::new(Some("No Name".to_string()))))))
-        .push(RetryPolicy::new(3, Duration::from_millis(50)))
-        .build();
-    assert_eq!(safe.policy().name(), "FallbackPolicy");
-    let mut p = safe.policy().as_ref().clone();
-    let k = p.inner().as_ref().unwrap().name();
-    assert_eq!(
-        &k,
-        "RetryPolicy"
-    );
+fn fallback_callback() {
+    let mut k = 0;
+    let mut safe = failsafe!([
+        RetryPolicy; [1, Duration::from_millis(50)],
+        FallbackPolicy; [on_fallback!({
+            k += 1;
+            let s = format!("Person {}", k);
+            Person::new(Some(s))
+        })],
+        RetryPolicy; [3, Duration::from_millis(50)]
+    ]);
+    let mut person = Person::new(None);
+    person.set_always_fail(true);
+    let person_result = { safe.run(&mut person) };
+    assert_eq!("Person 1", person.name());
+    let person_result = { safe.run(&mut person) };
+    assert_eq!("Person 2", person.name());
+    let person_result = { safe.run(&mut person) };
+    assert_eq!("Person 3", person.name());
 }
 
 #[test]
 fn test_fallback() {
-    let mut safe: Failsafe = Failsafe::builder()
-        .push(FallbackPolicy::new(Box::new(|| Box::new(Person::new(Some("No Name".to_string()))))))
-        .build();
+    let mut safe =
+        failsafe!([FallbackPolicy; [on_fallback!({ Person::new(Some("No Name".to_string())) })]]);
     let mut person = Person::new(None);
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
@@ -57,9 +54,7 @@ fn test_fallback() {
 
 #[test]
 fn test_retry_policy_with_always_failing() {
-    let mut safe: Failsafe = Failsafe::builder()
-        .push(RetryPolicy::new(3, Duration::from_millis(50)))
-        .build();
+    let mut safe = failsafe!([RetryPolicy; [3, Duration::from_millis(50)]]);
     let mut person = Person::new(None);
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
@@ -68,10 +63,10 @@ fn test_retry_policy_with_always_failing() {
 
 #[test]
 fn test_retry_policy_working_after_few_retries() {
-    let mut safe: Failsafe = Failsafe::builder()
-        .push(FallbackPolicy::new(Box::new(|| Box::new(Person::new(Some("No Name".to_string()))))))
-        .push(RetryPolicy::new(3, Duration::from_millis(50)))
-        .build();
+    let mut safe = failsafe!([
+        FallbackPolicy; [on_fallback!({Person::new(Some("No Name".to_string()))})],
+        RetryPolicy; [3, Duration::from_millis(50)]
+    ]);
     let mut person = Person::new(None);
     person.set_fail_pattern(vec![false, true, true]);
     let person_result = { safe.run(&mut person) };
@@ -80,9 +75,7 @@ fn test_retry_policy_working_after_few_retries() {
 
 #[test]
 fn test_if_retry_policy_multiple_run_correctly_reset() {
-    let mut safe: Failsafe = Failsafe::builder()
-        .push(RetryPolicy::new(3, Duration::from_millis(50)))
-        .build();
+    let mut safe = failsafe!([RetryPolicy; [3, Duration::from_millis(50)]]);
     let mut person = Person::new(None);
     person.set_fail_pattern(vec![false, true, true]);
     let person_result = { safe.run(&mut person) };
@@ -98,15 +91,18 @@ fn test_if_retry_policy_multiple_run_correctly_reset() {
 fn test_using_different_value_from_fallback() {
     let mut k = 0;
     let name_list = vec!["", "Picard", "Riker", "Data"];
-    let mut safe: Failsafe = Failsafe::builder()
-        .push(RetryPolicy::new(1, Duration::from_millis(50)))
-        .push(FallbackPolicy::new(Box::new(move || {
+    let mut safe = failsafe!([
+        RetryPolicy; [1, Duration::from_millis(50)],
+        FallbackPolicy;
+        [on_fallback!({
             k += 1;
-            if k >= name_list.len() { k = 0 }
-            Box::new(Person::new(Some(name_list[k].to_string())))
-        })))
-        .push(RetryPolicy::new(3, Duration::from_millis(50)))
-        .build();
+            if k >= name_list.len() {
+                k = 0
+            }
+            Person::new(Some(name_list[k].to_string()))
+        })],
+        RetryPolicy; [3, Duration::from_millis(50)]
+    ]);
     let mut person = Person::new(None);
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
@@ -115,4 +111,21 @@ fn test_using_different_value_from_fallback() {
     assert_eq!("Riker", person.name());
     let person_result = { safe.run(&mut person) };
     assert_eq!("Data", person.name());
+}
+
+#[test]
+fn failsafe_builder_marco() {
+    let safe = failsafe!([
+        FallbackPolicy;
+        [on_fallback!({
+            Person::new(
+                Some("No Name".to_string())
+            )
+        })],
+        RetryPolicy; [3, Duration::from_millis(50)]
+    ]);
+    assert_eq!(safe.policy().name(), "FallbackPolicy");
+    let mut p = safe.policy().as_ref().clone();
+    let k = p.inner().as_ref().unwrap().name();
+    assert_eq!(&k, "RetryPolicy");
 }

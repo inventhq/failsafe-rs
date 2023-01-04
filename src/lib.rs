@@ -1,14 +1,13 @@
+use crate::failsafe_error::FailsafeError;
+use crate::policies::fallback::FallbackAble;
 use std::any::Any;
 use std::error::Error;
 use std::time::Duration;
-use crate::failsafe_error::FailsafeError;
-use crate::person::Person;
-use crate::policies::fallback::FallbackAble;
 
-pub mod failsafe_error;
-pub mod run_state;
 pub mod failsafe;
+pub mod failsafe_error;
 pub mod policies;
+pub mod run_state;
 
 // all objects that are being protected should implement Executable trait
 pub trait Runnable {
