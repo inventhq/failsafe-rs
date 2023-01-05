@@ -4,7 +4,7 @@ Failsafe is a lightweight rust library for handling failures.
 
 ## How to use
 
-A failsafe client must implement the Runnable trait
+A failsafe client must implement the `Runnable` trait
 ```rust
 #[derive(Clone, Debug, PartialEq)]
 pub struct Person {
@@ -38,7 +38,7 @@ impl Runnable for Person {
 }
 ```
 
-Client that will use FallbackPolicy, must implement FallbackAble Trait
+Client that will use `FallbackPolicy`, must implement `FallbackAble` Trait
 ```rust
 impl FallbackAble for Person {
     fn as_any(&self) -> &dyn Any {
@@ -48,7 +48,7 @@ impl FallbackAble for Person {
 
 ```
 
-There's two way we can create Failsafe Object composing of multiple policies
+There's two way we can create `Failsafe` Object composing of multiple policies
 
 ## Using Macro
 ```rust
@@ -88,7 +88,7 @@ fn using_builder() -> FailSafe {
 }
 ```
 
-Once the failsafe object is created, we can pass any Runnable client and run it
+Once the `FailSafe` object is created, we can pass any `Runnable` client and run it
 
 ```rust
 fn main() {
