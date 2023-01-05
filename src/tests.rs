@@ -28,11 +28,13 @@ fn fallback_callback() {
         FallbackPolicy; [on_fallback!({
             k += 1;
             let s = format!("Person {}", k);
-            Person::new(Some(s))
+            let mut p = Person::new();
+            p.set_name(&s);
+            p
         })],
         RetryPolicy; [3, Duration::from_millis(50)]
     ]);
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
     assert_eq!("Person 1", person.name());
@@ -44,9 +46,8 @@ fn fallback_callback() {
 
 #[test]
 fn test_fallback() {
-    let mut safe =
-        failsafe!([FallbackPolicy; [on_fallback!({ Person::new(Some("No Name".to_string())) })]]);
-    let mut person = Person::new(None);
+    let mut safe = failsafe!([FallbackPolicy; [on_fallback!({ Person::with_name("No Name") })]]);
+    let mut person = Person::new();
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
     assert!(check_expected_error(person_result, "UsedFallback"));
@@ -55,7 +56,7 @@ fn test_fallback() {
 #[test]
 fn test_retry_policy_with_always_failing() {
     let mut safe = failsafe!([RetryPolicy; [3, Duration::from_millis(50)]]);
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
     assert!(check_expected_error(person_result, "RetryError"));
@@ -64,10 +65,10 @@ fn test_retry_policy_with_always_failing() {
 #[test]
 fn test_retry_policy_working_after_few_retries() {
     let mut safe = failsafe!([
-        FallbackPolicy; [on_fallback!({Person::new(Some("No Name".to_string()))})],
+        FallbackPolicy; [on_fallback!({Person::with_name("No Name")})],
         RetryPolicy; [3, Duration::from_millis(50)]
     ]);
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_fail_pattern(vec![false, true, true]);
     let person_result = { safe.run(&mut person) };
     assert!(person_result.is_ok());
@@ -76,12 +77,12 @@ fn test_retry_policy_working_after_few_retries() {
 #[test]
 fn test_if_retry_policy_multiple_run_correctly_reset() {
     let mut safe = failsafe!([RetryPolicy; [3, Duration::from_millis(50)]]);
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_fail_pattern(vec![false, true, true]);
     let person_result = { safe.run(&mut person) };
     assert!(person_result.is_ok());
     // should be same
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_fail_pattern(vec![false, true, true]);
     let person_result = { safe.run(&mut person) };
     assert!(person_result.is_ok());
@@ -93,17 +94,16 @@ fn test_using_different_value_from_fallback() {
     let name_list = vec!["", "Picard", "Riker", "Data"];
     let mut safe = failsafe!([
         RetryPolicy; [1, Duration::from_millis(50)],
-        FallbackPolicy;
-        [on_fallback!({
+        FallbackPolicy; [on_fallback!({
             k += 1;
             if k >= name_list.len() {
                 k = 0
             }
-            Person::new(Some(name_list[k].to_string()))
+            Person::with_name(name_list[k])
         })],
         RetryPolicy; [3, Duration::from_millis(50)]
     ]);
-    let mut person = Person::new(None);
+    let mut person = Person::new();
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
     assert_eq!("Picard", person.name());
@@ -116,14 +116,25 @@ fn test_using_different_value_from_fallback() {
 #[test]
 fn failsafe_builder_marco() {
     let safe = failsafe!([
-        FallbackPolicy;
-        [on_fallback!({
-            Person::new(
-                Some("No Name".to_string())
-            )
+        FallbackPolicy; [on_fallback!({
+            Person::with_name("No Name")
         })],
         RetryPolicy; [3, Duration::from_millis(50)]
     ]);
+    assert_eq!(safe.policy().name(), "FallbackPolicy");
+    let mut p = safe.policy().as_ref().clone();
+    let k = p.inner().as_ref().unwrap().name();
+    assert_eq!(&k, "RetryPolicy");
+}
+
+#[test]
+fn failsafe_builder() {
+    let safe = Failsafe::builder()
+        .push(FallbackPolicy::new(on_fallback!({
+            Person::with_name("No Name")
+        })))
+        .push(RetryPolicy::new(3, Duration::from_millis(50)))
+        .build();
     assert_eq!(safe.policy().name(), "FallbackPolicy");
     let mut p = safe.policy().as_ref().clone();
     let k = p.inner().as_ref().unwrap().name();

@@ -1,13 +1,10 @@
-
-/// a structure to test failsafe
-
-use std::any::Any;
-use rand::distributions::{Alphanumeric, DistString};
-use rand::random;
-use thiserror::Error;
 use crate::policies::fallback::FallbackAble;
 use crate::Runnable;
-
+use rand::distributions::{Alphanumeric, DistString};
+use rand::random;
+/// a structure to test failsafe
+use std::any::Any;
+use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum PersonError {
@@ -20,7 +17,6 @@ impl PersonError {
         self
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Person {
@@ -37,14 +33,27 @@ impl Person {
 }
 
 impl Person {
-    pub fn new(s: Option<String>) -> Self {
-        Person { name: s, always_fail: false, fail_pattern: None, _bk_fail_pattern: None }
+    pub fn new() -> Self {
+        Person {
+            name: None,
+            always_fail: false,
+            fail_pattern: None,
+            _bk_fail_pattern: None,
+        }
+    }
+
+    pub fn with_name(name: &str) -> Self {
+        Person {
+            name: Some(name.to_string()),
+            always_fail: false,
+            fail_pattern: None,
+            _bk_fail_pattern: None,
+        }
     }
 
     pub fn name(&self) -> String {
         self.name.clone().unwrap()
     }
-
 
     pub fn set_always_fail(&mut self, always_fail: bool) {
         self.always_fail = always_fail;
@@ -64,7 +73,10 @@ impl Runnable for Person {
             if self._bk_fail_pattern.as_ref().unwrap().is_empty() {
                 self._bk_fail_pattern = self.fail_pattern.clone();
             }
-            self._bk_fail_pattern.as_mut().and_then(|v| v.pop()).unwrap()
+            self._bk_fail_pattern
+                .as_mut()
+                .and_then(|v| v.pop())
+                .unwrap()
         } else if self.always_fail {
             true
         } else {
@@ -72,7 +84,9 @@ impl Runnable for Person {
         };
         if error {
             println!("Couldn't get a name!");
-            return Err(Box::new(PersonError::as_any(&PersonError::NameFindingError)));
+            return Err(Box::new(PersonError::as_any(
+                &PersonError::NameFindingError,
+            )));
         }
         println!("Got a name! {}", name);
         self.name = Some(name);
@@ -87,7 +101,6 @@ impl Runnable for Person {
         let n: &Person = other.as_any().downcast_ref().unwrap();
         self.name = Some(n.name().clone());
     }
-
 }
 
 impl FallbackAble for Person {
