@@ -12,7 +12,6 @@ pub mod run_state;
 // all objects that are being protected should implement Executable trait
 pub trait Runnable {
     fn run(&mut self) -> Result<(), Box<dyn Any>>;
-    fn as_any(&self) -> &dyn Any;
     fn update(&mut self, other: &Box<dyn FallbackAble>);
 }
 

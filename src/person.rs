@@ -93,10 +93,6 @@ impl Runnable for Person {
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn update(&mut self, other: &Box<dyn FallbackAble>) {
         let n: &Person = other.as_any().downcast_ref().unwrap();
         self.name = Some(n.name().clone());
