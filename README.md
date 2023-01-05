@@ -53,19 +53,21 @@ There's two way we can create Failsafe Object composing of multiple policies
 ## Using Macro
 ```rust
 fn using_macro() -> FailSafe {
-    p!(
-        [
-            // if failed, retry 3 times, after waiting for 50 milliseconds
-            RetryPolicy; [3, Duration::from_millis(50)],
-            // if retry attempt fails, returns a default value
-            FallbackPolicy;
-            [on_fallback!({
-                Person::new(
-                    Some("No Name".to_string())
-                )
-            })]
-        ]
-    )
+    let mut safe = {
+        let mut k = 0;
+        let name_list = vec!["", "Picard", "Riker", "Data"];
+        failsafe!([
+            RetryPolicy; [1, Duration::from_millis(50)],
+            FallbackPolicy; [on_fallback!({
+                k += 1;
+                if k >= name_list.len() {
+                    k = 0
+                }
+                Person::with_name(name_list[k])
+            })],
+            RetryPolicy; [3, Duration::from_millis(50)]
+        ])
+    };
 }
 ```
 
@@ -73,13 +75,17 @@ fn using_macro() -> FailSafe {
 ```rust
 fn using_builder() -> FailSafe {
     Failsafe::builder()
+        .push(RetryPolicy::new(1, Duration::from_millis(50)))
         .push(FallbackPolicy::new(on_fallback!({
-            Person::with_name("No Name")
+                k += 1;
+                if k >= name_list.len() {
+                    k = 0
+                }
+                Person::with_name(name_list[k])
         })))
         .push(RetryPolicy::new(3, Duration::from_millis(50)))
         .build()
 }
-
 ```
 
 Once the failsafe object is created, we can pass any Runnable client and run it

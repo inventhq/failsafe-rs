@@ -90,19 +90,21 @@ fn test_if_retry_policy_multiple_run_correctly_reset() {
 
 #[test]
 fn test_using_different_value_from_fallback() {
-    let mut k = 0;
-    let name_list = vec!["", "Picard", "Riker", "Data"];
-    let mut safe = failsafe!([
-        RetryPolicy; [1, Duration::from_millis(50)],
-        FallbackPolicy; [on_fallback!({
-            k += 1;
-            if k >= name_list.len() {
-                k = 0
-            }
-            Person::with_name(name_list[k])
-        })],
-        RetryPolicy; [3, Duration::from_millis(50)]
-    ]);
+    let mut safe = {
+        let mut k = 0;
+        let name_list = vec!["", "Picard", "Riker", "Data"];
+        failsafe!([
+            RetryPolicy; [1, Duration::from_millis(50)],
+            FallbackPolicy; [on_fallback!({
+                k += 1;
+                if k >= name_list.len() {
+                    k = 0
+                }
+                Person::with_name(name_list[k])
+            })],
+            RetryPolicy; [3, Duration::from_millis(50)]
+        ])
+    };
     let mut person = Person::new();
     person.set_always_fail(true);
     let person_result = { safe.run(&mut person) };
