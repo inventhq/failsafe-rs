@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::error::Error;
 use thiserror::Error;
 
@@ -10,7 +11,7 @@ pub enum FailsafeError {
     #[error("Retry error")]
     RetryError,
     #[error("Runnable Error")]
-    RunnableError(Box<dyn Error>),
+    RunnableError(Box<dyn Any>),
     #[error("Used Fallback")]
     UsedFallback,
     #[error("Unknown Error")]

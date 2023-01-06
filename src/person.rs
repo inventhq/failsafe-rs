@@ -1,9 +1,12 @@
 use crate::policies::fallback::FallbackAble;
+use crate::policies::timeout::Interruptable;
 use crate::Runnable;
 use rand::distributions::{Alphanumeric, DistString};
 use rand::random;
 /// a structure to test failsafe
 use std::any::Any;
+use std::thread::sleep;
+use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -21,9 +24,11 @@ impl PersonError {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Person {
     name: Option<String>,
-    always_fail: bool,
-    fail_pattern: Option<Vec<bool>>,
+    // the followings are for helping test
+    _always_fail: bool,
+    _fail_pattern: Option<Vec<bool>>,
     _bk_fail_pattern: Option<Vec<bool>>,
+    _wait_for: Option<Duration>,
 }
 
 impl Person {
@@ -36,18 +41,20 @@ impl Person {
     pub fn new() -> Self {
         Person {
             name: None,
-            always_fail: false,
-            fail_pattern: None,
+            _always_fail: false,
+            _fail_pattern: None,
             _bk_fail_pattern: None,
+            _wait_for: None,
         }
     }
 
     pub fn with_name(name: &str) -> Self {
         Person {
             name: Some(name.to_string()),
-            always_fail: false,
-            fail_pattern: None,
+            _always_fail: false,
+            _fail_pattern: None,
             _bk_fail_pattern: None,
+            _wait_for: None,
         }
     }
 
@@ -56,12 +63,16 @@ impl Person {
     }
 
     pub fn set_always_fail(&mut self, always_fail: bool) {
-        self.always_fail = always_fail;
+        self._always_fail = always_fail;
     }
 
     pub fn set_fail_pattern(&mut self, fail_pattern: Vec<bool>) {
         self._bk_fail_pattern = Some(fail_pattern.clone());
-        self.fail_pattern = Some(fail_pattern);
+        self._fail_pattern = Some(fail_pattern);
+    }
+
+    pub fn set_wait_for(&mut self, d: Duration) {
+        self._wait_for = Some(d);
     }
 }
 
@@ -69,24 +80,33 @@ impl Runnable for Person {
     fn run(&mut self) -> Result<(), Box<dyn Any>> {
         println!("I am a person, getting my name!");
         let name = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-        let error: bool = if self.fail_pattern != None {
-            if self._bk_fail_pattern.as_ref().unwrap().is_empty() {
-                self._bk_fail_pattern = self.fail_pattern.clone();
+        // Followings are for testing only
+        {
+            let error: bool = if self._fail_pattern != None {
+                if self._bk_fail_pattern.as_ref().unwrap().is_empty() {
+                    self._bk_fail_pattern = self._fail_pattern.clone();
+                }
+                self._bk_fail_pattern
+                    .as_mut()
+                    .and_then(|v| v.pop())
+                    .unwrap()
+            } else if self._always_fail {
+                true
+            } else {
+                random()
+            };
+            if self._wait_for.is_some() {
+                self._wait_for.as_ref().and_then(|v| {
+                    sleep(*v);
+                    Some(())
+                });
             }
-            self._bk_fail_pattern
-                .as_mut()
-                .and_then(|v| v.pop())
-                .unwrap()
-        } else if self.always_fail {
-            true
-        } else {
-            random()
-        };
-        if error {
-            println!("Couldn't get a name!");
-            return Err(Box::new(PersonError::as_any(
-                &PersonError::NameFindingError,
-            )));
+            if error {
+                println!("Couldn't get a name!");
+                return Err(Box::new(PersonError::as_any(
+                    &PersonError::NameFindingError,
+                )));
+            }
         }
         println!("Got a name! {}", name);
         self.name = Some(name);
@@ -100,6 +120,12 @@ impl Runnable for Person {
 }
 
 impl FallbackAble for Person {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl Interruptable for Person {
     fn as_any(&self) -> &dyn Any {
         self
     }

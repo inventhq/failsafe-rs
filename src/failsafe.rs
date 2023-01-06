@@ -2,8 +2,11 @@ use crate::failsafe_error::FailsafeError;
 use crate::policies::Policy;
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
+use std::any::Any;
 use std::borrow::{Borrow, BorrowMut};
 use std::error::Error;
+
+type FailsafeRunnableResult = Result<Result<(), Box<dyn Any>>, FailsafeError>;
 
 #[macro_export]
 macro_rules! failsafe {
@@ -32,7 +35,10 @@ pub struct Failsafe {
 
 impl Failsafe {
     pub fn run<'a, T: Runnable>(&'a mut self, protected: &'a mut T) -> Result<(), FailsafeError> {
-        self.policy.run(&mut Box::new(protected))
+        let mut errors = vec![];
+        let k = self.policy.run(&mut Box::new(protected), &mut errors);
+        println!("{:?}", errors);
+        k
     }
 
     pub(crate) fn state(&self) -> PolicyActionState {

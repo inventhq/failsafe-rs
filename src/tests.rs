@@ -142,3 +142,16 @@ fn failsafe_builder() {
     let k = p.inner().as_ref().unwrap().name();
     assert_eq!(&k, "RetryPolicy");
 }
+
+#[test]
+fn timeout_policy_test() {
+    let mut safe = failsafe!([TimeoutPolicy; [Duration::from_millis(1000)]]);
+    let mut person = Person::new();
+    let person_result = { safe.run(&mut person) };
+    assert!(person_result.is_ok());
+
+    person.set_wait_for(Duration::from_millis(2100));
+    let person_result = { safe.run(&mut person) };
+    assert!(person_result.is_err());
+    check_expected_error(person_result, "TimeoutError");
+}

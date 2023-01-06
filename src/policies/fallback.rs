@@ -17,7 +17,6 @@ pub struct FallbackPolicy {
     fallback: Box<dyn FnMut() -> Box<dyn FallbackAble>>,
     inner: Option<Box<dyn Policy>>,
     state: PolicyActionState,
-    runnable: Option<Box<dyn Runnable>>,
     runnable_error: Box<dyn Any>,
 }
 
@@ -27,7 +26,6 @@ impl FallbackPolicy {
             fallback,
             inner: None,
             state: PolicyActionState::Success,
-            runnable: None,
             runnable_error: Box::new(()),
         }
     }

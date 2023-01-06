@@ -1,17 +1,16 @@
-use std::any::Any;
-use std::thread::sleep;
-use std::time::Duration;
 use crate::failsafe_error::FailsafeError;
 use crate::policies::Policy;
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
+use std::any::Any;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub struct RetryPolicy {
     retries: i32,
     wait_for: Duration,
     inner: Option<Box<dyn Policy>>,
     state: PolicyActionState,
-    runnable: Option<Box<dyn Runnable>>,
     tries: i32,
     runnable_error: Box<dyn Any>,
 }
@@ -23,7 +22,6 @@ impl RetryPolicy {
             wait_for,
             inner: None,
             state: PolicyActionState::Success,
-            runnable: None,
             tries: 0,
             runnable_error: Box::new(()),
         };
@@ -48,16 +46,19 @@ impl Policy for RetryPolicy {
         "RetryPolicy".to_string()
     }
 
-    fn policy_action(&mut self, runnable: &mut Box<&mut dyn Runnable>) -> Result<PolicyActionState, FailsafeError> {
+    fn policy_action(
+        &mut self,
+        runnable: &mut Box<&mut dyn Runnable>,
+    ) -> Result<PolicyActionState, FailsafeError> {
         self.tries += 1;
         return if self.tries >= self.retries {
+            self.tries = 0;
             Err(FailsafeError::RetryError)
         } else {
             sleep(self.wait_for);
             Ok(PolicyActionState::Retry)
         };
     }
-
 
     fn state(&self) -> PolicyActionState {
         self.state.clone()
@@ -79,7 +80,8 @@ impl Policy for RetryPolicy {
 
     fn reset(&mut self) {
         self.tries = 0;
-        self.inner_mut().as_mut()
+        self.inner_mut()
+            .as_mut()
             .and_then(|mut inner| Some(inner.reset()));
     }
 }
