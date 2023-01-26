@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::error::Error;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -16,4 +15,16 @@ pub enum FailsafeError {
     UsedFallback,
     #[error("Unknown Error")]
     UnknownError,
+    #[error("Circuit Breaker Open")]
+    CircuitBreakerOpen,
+}
+
+impl FailsafeError {
+    pub fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    pub fn from_any(other: &Box<dyn Any>) -> &Self {
+        other.downcast_ref::<FailsafeError>().unwrap()
+    }
 }

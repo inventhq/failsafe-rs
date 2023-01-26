@@ -9,6 +9,8 @@ pub mod fallback;
 pub mod retry;
 pub mod timeout;
 
+pub struct PolicyState {}
+
 pub trait Policy {
     fn inner(&self) -> &Option<Box<dyn Policy>>;
     fn inner_mut(&mut self) -> &mut Option<Box<dyn Policy>>;

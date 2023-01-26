@@ -45,21 +45,22 @@ impl Policy for TimeoutPolicy {
 
     fn run_guarded(&mut self, runnable: &mut Box<&mut dyn Runnable>) -> Result<(), FailsafeError> {
         let start = Instant::now();
-        match runnable.run() {
-            Ok(_) => {}
-            Err(e) => self.set_runnable_error(e),
-        }
+        let r = runnable.run();
         self.time_taken = Some(start.elapsed());
         if self.time_taken > Some(self.timeout) {
             self.state = PolicyActionState::TimeoutError;
             return Err(FailsafeError::TimeoutError);
+        }
+        match r {
+            Ok(_) => {}
+            Err(e) => return Err(FailsafeError::RunnableError(e)),
         }
         Ok(())
     }
 
     fn policy_action(
         &mut self,
-        runnable: &mut Box<&mut dyn Runnable>,
+        _: &mut Box<&mut dyn Runnable>,
     ) -> Result<PolicyActionState, FailsafeError> {
         match self.state {
             PolicyActionState::TimeoutError => Err(FailsafeError::TimeoutError),

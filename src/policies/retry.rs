@@ -48,7 +48,7 @@ impl Policy for RetryPolicy {
 
     fn policy_action(
         &mut self,
-        runnable: &mut Box<&mut dyn Runnable>,
+        _: &mut Box<&mut dyn Runnable>,
     ) -> Result<PolicyActionState, FailsafeError> {
         self.tries += 1;
         return if self.tries >= self.retries {

@@ -19,6 +19,10 @@ impl PersonError {
     pub fn as_any(&self) -> &dyn Any {
         self
     }
+
+    pub fn from_any(other: &Box<dyn Any>) -> &Self {
+        other.downcast_ref::<PersonError>().unwrap()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,8 +71,15 @@ impl Person {
     }
 
     pub fn set_fail_pattern(&mut self, fail_pattern: Vec<bool>) {
-        self._bk_fail_pattern = Some(fail_pattern.clone());
-        self._fail_pattern = Some(fail_pattern);
+        if fail_pattern.len() == 0 {
+            self._fail_pattern = None;
+            self._bk_fail_pattern = None;
+            return;
+        }
+        let mut k = fail_pattern.clone();
+        k.reverse();
+        self._bk_fail_pattern = Some(k.clone());
+        self._fail_pattern = Some(k);
     }
 
     pub fn set_wait_for(&mut self, d: Duration) {
@@ -101,6 +112,7 @@ impl Runnable for Person {
                     Some(())
                 });
             }
+            println!("{}", error);
             if error {
                 println!("Couldn't get a name!");
                 return Err(Box::new(PersonError::as_any(
