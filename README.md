@@ -47,7 +47,7 @@ impl FallbackAble for Person {
 
 ```
 
-There's two way we can create `Failsafe` Object composing of multiple policies
+There are two ways we can create `Failsafe` Object composing of multiple policies
 
 ## Using Macro
 ```rust
@@ -112,4 +112,63 @@ fn main() {
 }
 ```
 
+# Policies, Features, Roadmap
+
+## Common features
+- [ ] Cooperative Cancellation
+- [ ] Cooperative interruption
+- [ ] Propagating Cancellations
+- [ ] Interruptions
+- [ ] Event Listeners
+ 
+## Retry Policy
+Retry policy, that retries given amount time with a delay before failing
+
+This policy will retry execution pipeline with given delay between attempts, if execution fails
+after retries have been exceeded, it will return `FailsafeError::Runnable<Box<Any>`
+
+### Features
+
+- [x] Retries
+- [x] Delay between retries
+- [ ] Backoff [Ref](https://failsafe.dev/javadoc/core/dev/failsafe/RetryPolicyBuilder.html#withBackoff-long-long-java.time.temporal.ChronoUnit-)
+- [ ] Random delay
+- [ ] Jitter [Ref](https://failsafe.dev/javadoc/core/dev/failsafe/RetryPolicyBuilder.html#withJitter-double-)
+- [ ] No limit
+
+
+## Circuit Breaker
+Circuit Breaker will temporarily disable executions after failure threshold exceeded the configured limit.
+
+Failsafe Java has two types of implementations
+
+- [x] *Count based*: Count based circuit breakers operate by tracking recent execution results up to a certain limit.
+- [ ] *Time based*: Time based circuit breakers operate by tracking any number of execution results that occur within a time period.
+
+Once the failure limit has been reached the breaker will open and next executions will fail with `CircuitBreakerOpen` error. After the configured time, it will be half-opened and some executions are allowed. If this trial executions are successful, the circuit is closed again, and normal operation resumes. Otherwise, it reopened.
+
+### Features
+- [ ] Metrics
+- [ ] [Time based resolution](https://failsafe.dev/circuit-breaker/#time-based-resolution)
+
+## Timeout
+Timeout if the execution is not completed within the given time.
+- [x] Timing out
+
+## Rate limiters
+
+[Ref](https://failsafe.dev/rate-limiter/)
+
+- [ ] Not implemented
+  - [ ] Smooth
+  - [ ] Bursty
+
+It's no async, so I can implement it
+
+
+## Bulkhead
+
+[Ref](https://failsafe.dev/bulkhead/)
+
+This one's async.
 

@@ -6,6 +6,8 @@ use std::any::Any;
 use std::borrow::{Borrow, BorrowMut};
 use std::error::Error;
 
+/// Failsafe is a simple library for handling failures. It tries to resemble Failsafe for Java closely.
+
 type FailsafeRunnableResult = Result<Result<(), Box<dyn Any>>, FailsafeError>;
 
 #[macro_export]

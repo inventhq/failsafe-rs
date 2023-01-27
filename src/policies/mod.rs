@@ -9,12 +9,54 @@ pub mod fallback;
 pub mod retry;
 pub mod timeout;
 
-pub struct PolicyState {}
+pub struct PolicyData {
+    state: PolicyActionState,
+    runnable_error: Box<dyn Any>,
+    inner: Option<Box<dyn Policy>>,
+}
+
+impl Default for PolicyData {
+    fn default() -> Self {
+        PolicyData {
+            state: PolicyActionState::Success,
+            runnable_error: Box::new(()),
+            inner: None,
+        }
+    }
+}
 
 pub trait Policy {
-    fn inner(&self) -> &Option<Box<dyn Policy>>;
-    fn inner_mut(&mut self) -> &mut Option<Box<dyn Policy>>;
-    fn set_inner(&mut self, inner: Box<dyn Policy>);
+    fn policy_data(&self) -> &PolicyData;
+    fn policy_data_mut(&mut self) -> &mut PolicyData;
+
+    fn inner(&self) -> &Option<Box<dyn Policy>> {
+        &self.policy_data().inner
+    }
+
+    fn inner_mut(&mut self) -> &mut Option<Box<dyn Policy>> {
+        &mut self.policy_data_mut().inner
+    }
+
+    fn set_inner(&mut self, inner: Box<dyn Policy>) {
+        self.policy_data_mut().inner = Some(inner);
+    }
+
+    fn state(&self) -> &PolicyActionState {
+        &self.policy_data().state
+    }
+
+    fn set_state(&mut self, state: PolicyActionState) {
+        self.policy_data_mut().state = state;
+    }
+
+    fn runnable_error(&self) -> &Box<dyn Any> {
+        &self.policy_data().runnable_error
+    }
+
+    fn set_runnable_error(&mut self, err: Box<dyn Any>) {
+        self.policy_data_mut().runnable_error = err;
+    }
+
     fn name(&self) -> String;
 
     fn run(
@@ -75,11 +117,6 @@ pub trait Policy {
         runnable: &mut Box<&mut dyn Runnable>,
     ) -> Result<PolicyActionState, FailsafeError>;
 
-    fn state(&self) -> PolicyActionState;
-    fn set_state(&mut self, state: PolicyActionState);
-    fn on_error(&mut self);
-    fn runnable_error(&self) -> &Box<dyn Any>;
-    fn set_runnable_error(&mut self, err: Box<dyn Any>);
     fn reset(&mut self) {
         self.inner_mut()
             .as_mut()

@@ -1,5 +1,5 @@
 use crate::failsafe_error::FailsafeError;
-use crate::policies::Policy;
+use crate::policies::{Policy, PolicyData};
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
 use std::any::Any;
@@ -13,13 +13,11 @@ pub enum CircuitBreakerState {
 }
 
 pub struct CircuitBreakerPolicy {
+    policy_data: PolicyData,
     circuit_breaker_state: CircuitBreakerState,
-    state: PolicyActionState,
     failure_threshold: i32,
     success_threshold: i32,
     delay: Duration,
-    runnable_error: Box<dyn Any>,
-    inner: Option<Box<dyn Policy>>,
     last_attempt: Option<Instant>,
     failure_count: i32,
     success_count: i32,
@@ -28,13 +26,15 @@ pub struct CircuitBreakerPolicy {
 impl CircuitBreakerPolicy {
     pub(crate) fn new(failure_threshold: i32, delay: Duration, success_threshold: i32) -> Self {
         CircuitBreakerPolicy {
+            policy_data: PolicyData {
+                state: PolicyActionState::Success,
+                runnable_error: Box::new(()),
+                inner: None,
+            },
             circuit_breaker_state: CircuitBreakerState::Closed,
-            state: PolicyActionState::Success,
             failure_threshold,
             success_threshold,
             delay,
-            runnable_error: Box::new(()),
-            inner: None,
             last_attempt: None,
             failure_count: 0,
             success_count: 0,
@@ -65,16 +65,12 @@ impl CircuitBreakerPolicy {
 }
 
 impl Policy for CircuitBreakerPolicy {
-    fn inner(&self) -> &Option<Box<dyn Policy>> {
-        &self.inner
+    fn policy_data(&self) -> &PolicyData {
+        &self.policy_data
     }
 
-    fn inner_mut(&mut self) -> &mut Option<Box<dyn Policy>> {
-        &mut self.inner
-    }
-
-    fn set_inner(&mut self, inner: Box<dyn Policy>) {
-        self.inner = Some(inner);
+    fn policy_data_mut(&mut self) -> &mut PolicyData {
+        &mut self.policy_data
     }
 
     fn name(&self) -> String {
@@ -111,7 +107,7 @@ impl Policy for CircuitBreakerPolicy {
                 CircuitBreakerState::Open => Err(FailsafeError::CircuitBreakerOpen),
             },
             Err(e) => {
-                self.state = PolicyActionState::CircuitBreakerError;
+                self.policy_data_mut().state = PolicyActionState::CircuitBreakerError;
                 Err(FailsafeError::RunnableError(e))
             }
         }
@@ -121,7 +117,7 @@ impl Policy for CircuitBreakerPolicy {
         &mut self,
         _: &mut Box<&mut dyn Runnable>,
     ) -> Result<PolicyActionState, FailsafeError> {
-        match self.state {
+        match self.policy_data().state {
             PolicyActionState::CircuitBreakerError => {
                 self.failure_count += 1;
                 if self.failure_count >= self.failure_threshold {
@@ -131,26 +127,6 @@ impl Policy for CircuitBreakerPolicy {
             }
             _ => Ok(PolicyActionState::Success),
         }
-    }
-
-    fn state(&self) -> PolicyActionState {
-        self.state.clone()
-    }
-
-    fn set_state(&mut self, state: PolicyActionState) {
-        self.state = state;
-    }
-
-    fn on_error(&mut self) {
-        todo!()
-    }
-
-    fn runnable_error(&self) -> &Box<dyn Any> {
-        &self.runnable_error
-    }
-
-    fn set_runnable_error(&mut self, err: Box<dyn Any>) {
-        self.runnable_error = err;
     }
 
     fn reset(&mut self) {

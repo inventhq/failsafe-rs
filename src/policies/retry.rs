@@ -1,45 +1,51 @@
 use crate::failsafe_error::FailsafeError;
-use crate::policies::Policy;
+use crate::policies::{Policy, PolicyData};
 use crate::run_state::PolicyActionState;
 use crate::Runnable;
 use std::any::Any;
 use std::thread::sleep;
 use std::time::Duration;
 
+/// Retry policy, that retries given amount time with a delay before failing
+///
+/// This policy will retry execution pipeline with given delay between attempts, if execution fails
+/// after retries have been exceeded, it will return `FailsafeError::Runnable<Box<Any>`
+///
+/// ## Features
+///
+/// - [x] Retries
+/// - [x] Delay between retries
+/// - [ ] Back off [Link](https://failsafe.dev/javadoc/core/dev/failsafe/RetryPolicyBuilder.html#withBackoff-long-long-java.time.temporal.ChronoUnit-)
+/// - [ ] Random delay
+/// - [ ] Jitter [Check](https://failsafe.dev/javadoc/core/dev/failsafe/RetryPolicyBuilder.html#withJitter-double-)
+/// - [ ] No limit
+///
 pub struct RetryPolicy {
+    policy_data: PolicyData,
     retries: i32,
-    wait_for: Duration,
-    inner: Option<Box<dyn Policy>>,
-    state: PolicyActionState,
+    delay: Duration,
     tries: i32,
-    runnable_error: Box<dyn Any>,
 }
 
 impl RetryPolicy {
-    pub(crate) fn new(retries: i32, wait_for: Duration) -> Self {
+    pub(crate) fn new(retries: i32, delay: Duration) -> Self {
         let policy = RetryPolicy {
+            policy_data: Default::default(),
             retries,
-            wait_for,
-            inner: None,
-            state: PolicyActionState::Success,
+            delay,
             tries: 0,
-            runnable_error: Box::new(()),
         };
         policy
     }
 }
 
 impl Policy for RetryPolicy {
-    fn inner(&self) -> &Option<Box<dyn Policy>> {
-        &self.inner
+    fn policy_data(&self) -> &PolicyData {
+        &self.policy_data
     }
 
-    fn inner_mut(&mut self) -> &mut Option<Box<dyn Policy>> {
-        &mut self.inner
-    }
-
-    fn set_inner(&mut self, inner: Box<dyn Policy>) {
-        self.inner = Some(inner);
+    fn policy_data_mut(&mut self) -> &mut PolicyData {
+        &mut self.policy_data
     }
 
     fn name(&self) -> String {
@@ -55,27 +61,9 @@ impl Policy for RetryPolicy {
             self.tries = 0;
             Err(FailsafeError::RetryError)
         } else {
-            sleep(self.wait_for);
+            sleep(self.delay);
             Ok(PolicyActionState::Retry)
         };
-    }
-
-    fn state(&self) -> PolicyActionState {
-        self.state.clone()
-    }
-
-    fn set_state(&mut self, state: PolicyActionState) {
-        self.state = state;
-    }
-
-    fn on_error(&mut self) {}
-
-    fn runnable_error(&self) -> &Box<dyn Any> {
-        &self.runnable_error
-    }
-
-    fn set_runnable_error(&mut self, err: Box<dyn Any>) {
-        self.runnable_error = err;
     }
 
     fn reset(&mut self) {
