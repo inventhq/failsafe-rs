@@ -6,6 +6,7 @@ use std::error::Error;
 
 pub mod circuit_breaker;
 pub mod fallback;
+pub mod rate_limiter;
 pub mod retry;
 pub mod timeout;
 
@@ -65,6 +66,7 @@ pub trait Policy {
         policy_errors: &mut Vec<FailsafeError>,
     ) -> Result<(), FailsafeError> {
         loop {
+            self.before_run();
             let e = if self.inner_mut().is_some() {
                 let result = self
                     .inner_mut()
@@ -100,6 +102,9 @@ pub trait Policy {
             };
         }
     }
+
+    // does nothing for now.
+    fn before_run(&self) {}
 
     fn run_guarded(&mut self, runnable: &mut Box<&mut dyn Runnable>) -> Result<(), FailsafeError> {
         let result = runnable.run();

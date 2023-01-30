@@ -1,6 +1,7 @@
 use super::*;
 use crate::person::{Person, PersonError};
 use crate::policies::circuit_breaker::{CircuitBreakerPolicy, CircuitBreakerState};
+use crate::policies::rate_limiter::{LimiterType, RateLimiter};
 use crate::{
     failsafe::Failsafe,
     failsafe_error::FailsafeError,
@@ -8,7 +9,7 @@ use crate::{
     policies::{fallback::FallbackPolicy, retry::RetryPolicy, timeout::TimeoutPolicy},
 };
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn check_expected_error(r: Result<(), FailsafeError>, expected: &str) -> bool {
     match r {
@@ -251,4 +252,18 @@ fn circuit_breaker_impl() {
         .is_err());
     assert_eq!(policy.circuit_breaker_state(), &CircuitBreakerState::Open);
     println!("{:?}", policy_errors);
+}
+
+#[test]
+fn rate_limiter_impl() {
+    let mut policy = RateLimiter::new(LimiterType::Smooth, 100, Duration::from_secs(1));
+    let mut p = Person::new();
+    let mut policy_errors = vec![];
+    let start = Instant::now();
+    for _ in 0..200 {
+        match policy.run(&mut Box::new(&mut p), &mut policy_errors) {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
 }

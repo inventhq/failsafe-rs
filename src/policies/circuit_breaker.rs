@@ -24,7 +24,7 @@ pub struct CircuitBreakerPolicy {
 }
 
 impl CircuitBreakerPolicy {
-    pub(crate) fn new(failure_threshold: i32, delay: Duration, success_threshold: i32) -> Self {
+    pub fn new(failure_threshold: i32, delay: Duration, success_threshold: i32) -> Self {
         CircuitBreakerPolicy {
             policy_data: PolicyData {
                 state: PolicyActionState::Success,
